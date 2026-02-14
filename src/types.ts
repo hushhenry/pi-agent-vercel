@@ -4,6 +4,7 @@ import {
 	type CoreUserMessage,
 	type CoreAssistantMessage,
 	type CoreToolMessage,
+	type Tool as VercelTool,
 } from "ai";
 import type { Static, TSchema } from "@sinclair/typebox";
 import { EventStream } from "./utils/event-stream.js";
@@ -28,20 +29,27 @@ export type AgentToolMessage = CoreToolMessage & MessageMeta;
 
 export type AgentMessage = AgentUserMessage | AgentAssistantMessage | AgentToolMessage;
 
-export interface Tool<TParameters extends TSchema = TSchema> {
+/**
+ * AgentTool extends Vercel AI SDK's Tool type to add agent-specific 
+ * capabilities like streaming updates and cancellation.
+ */
+export interface AgentTool<TParameters = any, TResult = any> extends VercelTool<TParameters, TResult> {
+	/** Tool name (identifier) */
 	name: string;
-	description: string;
-	parameters: TParameters;
-}
-
-export interface AgentTool<TParameters extends TSchema = TSchema, TDetails = any> extends Tool<TParameters> {
-	label: string;
-	execute: (
-		toolCallId: string,
-		params: Static<TParameters>,
-		signal?: AbortSignal,
-		onUpdate?: (partialResult: any) => void,
-	) => Promise<{ content: string | Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }>; details: TDetails }>;
+	/** Optional display label for UI */
+	label?: string;
+	/** 
+	 * Enhanced execute function for agentic workflows.
+	 * Overrides the base Vercel Tool execute with extra context.
+	 */
+	execute?: (
+		args: TParameters,
+		context: {
+			toolCallId: string;
+			signal?: AbortSignal;
+			onUpdate?: (partialResult: any) => void;
+		}
+	) => Promise<TResult>;
 }
 
 export interface AgentContext {

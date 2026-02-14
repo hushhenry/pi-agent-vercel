@@ -254,20 +254,23 @@ async function executeToolCalls(
 
 		try {
 			if (!tool) throw new Error(`Tool ${toolCall.toolName} not found`);
-			result = await tool.execute(toolCall.toolCallId, toolCall.args, signal, (partialResult) => {
-				stream.push({
-					type: "tool_execution_update",
-					toolCallId: toolCall.toolCallId,
-					toolName: toolCall.toolName,
-					args: toolCall.args,
-					partialResult,
-				});
+			if (!tool.execute) throw new Error(`Tool ${toolCall.toolName} has no execute function`);
+			
+			result = await tool.execute(toolCall.args, {
+				toolCallId: toolCall.toolCallId,
+				signal,
+				onUpdate: (partialResult) => {
+					stream.push({
+						type: "tool_execution_update",
+						toolCallId: toolCall.toolCallId,
+						toolName: toolCall.toolName,
+						args: toolCall.args,
+						partialResult,
+					});
+				}
 			});
 		} catch (e) {
-			result = {
-				content: [{ type: "text", text: e instanceof Error ? e.message : String(e) }],
-				details: {},
-			};
+			result = e instanceof Error ? e.message : String(e);
 		}
 
 		stream.push({
@@ -285,7 +288,7 @@ async function executeToolCalls(
 					type: "tool-result",
 					toolCallId: toolCall.toolCallId,
 					toolName: toolCall.toolName,
-					result: result.content,
+					result: result, // result can be anything returned by the tool
 				},
 			],
 			timestamp: Date.now(),
