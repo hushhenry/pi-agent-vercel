@@ -2,7 +2,7 @@ import {
 	type LanguageModel,
 	type CoreMessage,
 } from "ai";
-import { agentLoop, agentLoopContinue } from "./agent-loop.js";
+import { agentLoop } from "./agent-loop.js";
 import { EventStream } from "./utils/event-stream.js";
 import type {
 	AgentContext,
@@ -10,44 +10,10 @@ import type {
 	AgentLoopConfig,
 	AgentMessage,
 	AgentTool,
-	ThinkingLevel,
 } from "./types.js";
 
 function defaultConvertToLlm(messages: AgentMessage[]): CoreMessage[] {
-	return messages.map((m) => {
-		if (m.role === "user") {
-			return {
-				role: "user",
-				content: typeof m.content === "string" 
-					? m.content 
-					: m.content.map(c => {
-						if (c.type === "text") return { type: "text", text: c.text };
-						if (c.type === "image") return { type: "image", image: c.data, mimeType: c.mimeType };
-						return { type: "text", text: "" };
-					})
-			} as CoreMessage;
-		}
-		if (m.role === "assistant") {
-			return {
-				role: "assistant",
-				content: m.content.map(c => {
-					if (c.type === "text") return { type: "text", text: c.text };
-					if (c.type === "toolCall") return { type: "tool-call", toolCallId: c.id, toolName: c.name, args: c.arguments };
-					return { type: "text", text: "" };
-				})
-			} as CoreMessage;
-		}
-		if (m.role === "toolResult") {
-			return {
-				role: "tool",
-				content: m.content.map(c => {
-					if (c.type === "text") return { type: "tool-result", toolCallId: m.toolCallId, toolName: m.toolName, result: c.text };
-					return { type: "tool-result", toolCallId: m.toolCallId, toolName: m.toolName, result: "" };
-				})
-			} as CoreMessage;
-		}
-		return { role: "user", content: "" } as CoreMessage;
-	});
+	return messages.map(({ timestamp, usage, ...rest }) => rest as CoreMessage);
 }
 
 export interface AgentOptions {
